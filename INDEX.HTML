@@ -43,20 +43,18 @@
         
         <!-- HEADER -->
         <header class="flex flex-wrap justify-between items-end gap-4 mb-8">
-            <div>
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="bg-gradient-to-br from-slate-900 to-blue-900 p-2 rounded-xl text-white shadow-md">
-                        <i data-lucide="shield-check" class="w-5 h-5"></i>
+            <div class="flex items-center gap-4">
+                <img src="MIJ.PNG" alt="Logo PT Majau Inti Jaya" class="h-14 w-auto object-contain rounded-xl bg-white p-1.5 shadow-sm border border-slate-100">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-xs font-black tracking-widest uppercase text-blue-600">HSE Transport • PT Majau Inti Jaya</span>
                     </div>
-                    <span class="text-xs font-black tracking-widest uppercase text-blue-600">HSE Transport • PT Majau Inti Jaya</span>
+                    <h2 class="text-3xl font-black text-slate-800 tracking-tight">DMS PT MAJAU INTI JAYA</h2>
+                    <p class="text-slate-500 font-medium italic">Evaluasi dan validasi data alert DMS — Multi-User Cloud Storage</p>
                 </div>
-                <h2 class="text-3xl font-black text-slate-800 tracking-tight">DMS PT MAJAU INTI JAYA</h2>
             </div>
             
             <div class="flex flex-wrap items-center gap-3">
-                <button onclick="syncFromCloud(true)" id="btnManualSync" class="bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all">
-                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> Sync Data
-                </button>
                 <button onclick="resetAllData()" class="bg-red-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-red-600 shadow-lg shadow-red-200 transition-all">
                     <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset All Data
                 </button>
@@ -338,7 +336,6 @@
         // KONFIGURASI CLOUD STORAGE (ISI URL WEB APP GOOGLE APPS SCRIPT DI SINI)
         // =========================================================================
         const DEFAULT_GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwSjtuVF7TOa9hUHTny8wcQRBw7zvOqmZr47GwqAgAg2y384lDrRUYpzUPJ9hPbqo4Y/exec"; 
-
         const vendorMaster = [
             {unit: "KT8633GG", vendor: "Cartrack"}, {unit: "KT9031KB", vendor: "Cartrack"},
             {unit: "KT9063KB", vendor: "Cartrack"}, {unit: "KT9269KU", vendor: "Cartrack"},
@@ -398,7 +395,6 @@
 
         let postEvents = JSON.parse(localStorage.getItem('dms_post_events_final')) || [];
         let interventionChart;
-        let autoSyncInterval = null;
 
         function getGasUrl() {
             return DEFAULT_GAS_WEBAPP_URL;
@@ -408,12 +404,9 @@
             return localStorage.getItem('dms_pv_user_name') || 'Tim HSE Transport';
         }
 
-        async function syncFromCloud(showAlert = false) {
+        async function syncFromCloud() {
             const url = getGasUrl();
-            if (!url) {
-                if (showAlert) alert("URL Cloud belum dikonfigurasi pada variabel DEFAULT_GAS_WEBAPP_URL.");
-                return;
-            }
+            if (!url) return;
 
             try {
                 const res = await fetch(url);
@@ -422,13 +415,9 @@
                     postEvents = json.data;
                     localStorage.setItem('dms_post_events_final', JSON.stringify(postEvents));
                     renderAll();
-                    if (showAlert) alert(`Sinkronisasi berhasil! Total ${postEvents.length} data terpadu dari Cloud.`);
-                } else {
-                    throw new Error("Format respon tidak valid");
                 }
             } catch (err) {
                 console.error("Cloud Sync Error:", err);
-                if (showAlert) alert("Gagal mengambil data dari Cloud. Pastikan URL Web App Google Apps Script benar dan akses diatur ke 'Anyone'.");
             }
         }
 
@@ -443,7 +432,7 @@
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(payload)
                 });
-                setTimeout(() => syncFromCloud(false), 1200);
+                await syncFromCloud();
                 return true;
             } catch (err) {
                 console.error("Cloud Push Error:", err);
@@ -1142,13 +1131,20 @@
             reader.readAsArrayBuffer(file);
         }
 
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'dms_post_events_final') {
+                postEvents = JSON.parse(e.newValue || '[]');
+                renderAll();
+            }
+        });
+
+        window.addEventListener('focus', () => {
+            syncFromCloud();
+        });
+
         window.onload = () => {
             renderAll();
-            syncFromCloud(false);
-            // Auto-refresh data dari Cloud setiap 30 detik agar kolaborasi multi-user selalu up-to-date
-            autoSyncInterval = setInterval(() => {
-                if (getGasUrl()) syncFromCloud(false);
-            }, 30000);
+            syncFromCloud();
         };
     </script>
 </body>
